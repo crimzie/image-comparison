@@ -4,5 +4,7 @@ import java.io.File
 import javax.imageio.ImageIO
 
 object ShellUI extends App {
-  ImageIO write (new ImageComparator(new File(args(0)), new File(args(1))).getHighlightedDiffs(), "PNG", new File("/new.png"))
+  val init = System.currentTimeMillis()
+  ImageIO write(ImageComparator getHighlightedDiffs(new File(args(0)), new File(args(1))), "PNG", new File(args(1)))
+  println(s"Done in ${System.currentTimeMillis - init}")
 }
