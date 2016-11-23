@@ -46,21 +46,17 @@ object ImageComparator {
       if (pixels.isEmpty) return clusters
       val (hor, vrt) = pixels.head
       @tailrec
-      def collectCluster(
-                          edges: Edges,
-                          seq: Seq[(Int, Int)],
-                          offPixels: Seq[(Int, Int)],
-                          cluster: Edges): (Edges, Seq[(Int, Int)]) = {
+      def collectCluster(edges: Edges, seq: Seq[(Int, Int)], offPixels: Seq[(Int, Int)]): (Edges, Seq[(Int, Int)]) = {
         val cl = seq filter { case (x, y) =>
           x - edges.left >= -step && x - edges.right <= step && y - edges.top >= -step && y - edges.bottom <= step
         }
-        if (cl.isEmpty) return (cluster, offPixels)
+        if (cl.isEmpty) return (edges, offPixels)
         val hor = cl map { case (x, _) => x }
         val vrt = cl map { case (_, y) => y }
         val newEdges = Edges(hor.min, hor.max, vrt.min, vrt.max)
-        collectCluster(newEdges, seq diff cl, offPixels ++ cl, cluster |+| newEdges)
+        collectCluster(edges |+| newEdges, seq diff cl, offPixels ++ cl)
       }
-      val (newCluster, clPixels) = collectCluster(Edges(hor, hor, vrt, vrt), pixels, Nil, Edges(height, 0, width, 0))
+      val (newCluster, clPixels) = collectCluster(Edges(hor, hor, vrt, vrt), pixels, Nil)
       findClusters(pixels diff clPixels, clusters :+ newCluster)
     }
     val graph = picB.createGraphics()
