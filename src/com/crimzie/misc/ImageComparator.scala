@@ -2,7 +2,7 @@ package com.crimzie.misc
 
 import java.awt.Color
 import java.awt.image.BufferedImage
-import java.io.File
+import java.io.{File, IOException}
 import javax.imageio.ImageIO
 
 import scala.annotation.tailrec
@@ -20,22 +20,22 @@ object ImageComparator {
     * @param fileB second image file, which will be returned marked.
     * @param step distance in pixels to be distinguishing for separate areas of differing pixels.
     * @return a <code>BufferedImage</code> with marked differences.
-    * @exception <code>IOException</code> if an error occurs during reading the files.
+    * @throws IOException if an error occurs during reading the files.
     * */
   def getHighlightedDiffs(fileA: File, fileB: File, step: Int = 10): BufferedImage = {
-    case class Edges(top: Int, bottom: Int, left: Int, right: Int) {
+    case class Edges(left: Int, right: Int, top: Int, bottom: Int) {
       def |+|(that: Edges) = Edges(
-        math min(this.top, that.top),
-        math max(this.bottom, that.bottom),
         math min(this.left, that.left),
-        math max(this.right, that.right))
+        math max(this.right, that.right),
+        math min(this.top, that.top),
+        math max(this.bottom, that.bottom))
     }
     val picA = ImageIO read fileA
     val picB = ImageIO read fileB
     val height = picA getHeight()
     val width = picA getWidth()
-    val diffs = (for (h <- 1 to height; w <- 1 to width) yield (h, w)) filter {
-      case (h, w) =>
+    val diffs = (for (w <- 1 to width; h <- 1 to height) yield (w, h)) filter {
+      case (w, h) =>
         val pA = picA getRGB(w - 1, h - 1)
         val pB = picB getRGB(w - 1, h - 1)
         (math abs (pA >> 24 & 0xff) - (pB >> 24 & 0xff)) + (math abs (pA >> 16 & 0xff) - (pB >> 16 & 0xff)) +
@@ -52,11 +52,11 @@ object ImageComparator {
                           offPixels: Seq[(Int, Int)],
                           cluster: Edges): (Edges, Seq[(Int, Int)]) = {
         val cl = seq filter { case (x, y) =>
-          (x - edges.top >= -step || x + edges.bottom <= step) && (y - edges.left >= -step || y + edges.right <= step)
+          x - edges.left >= -step && x - edges.right <= step && y - edges.top >= -step && y - edges.bottom <= step
         }
         if (cl.isEmpty) return (cluster, offPixels)
-        val hor = cl map (_._1)
-        val vrt = cl map (_._2)
+        val hor = cl map { case (x, _) => x }
+        val vrt = cl map { case (_, y) => y }
         val newEdges = Edges(hor.min, hor.max, vrt.min, vrt.max)
         collectCluster(newEdges, seq diff cl, offPixels ++ cl, cluster |+| newEdges)
       }
@@ -65,7 +65,7 @@ object ImageComparator {
     }
     val graph = picB.createGraphics()
     graph.setPaint(Color.RED)
-    findClusters(diffs) foreach { case Edges(top, bottom, left, right) =>
+    findClusters(diffs) foreach { case Edges(left, right, top, bottom) =>
       graph.drawRect(left - 1, top - 1, right - left, bottom - top)
     }
     picB
